@@ -1,0 +1,4 @@
+config.py
+venv/
+anon.session
+.idea/
