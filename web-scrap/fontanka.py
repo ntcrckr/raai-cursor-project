@@ -32,7 +32,7 @@ for link in links:
     for paragraph in paragraphs:
         substance=substance+paragraph.text
 
-    substance=substance+" "+title
+    substance=title+" "+substance
     
     data=[{"url":url,"substance":substance}]
     
