@@ -1,7 +1,11 @@
+import sqlite3
+
 import sqlalchemy as db
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy.exc import IntegrityError
 from enum import Enum
+import json
 
 
 Base = declarative_base()
@@ -11,9 +15,9 @@ class Emotion(str, Enum):
     """
     Enum for emotions
     """
-    positive = "pos"
-    neutral = "neu"
-    negative = "neg"
+    positive = "Позитивный"
+    neutral = "Нейтральный"
+    negative = "Негативный"
 
 
 class Theme(str, Enum):
@@ -59,9 +63,8 @@ class Channel(Base):
 class UserToChannel(Base):
     __tablename__ = "user_to_channel"
 
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    channel_id = Column(Integer, ForeignKey("channels.id"))
+    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    channel_id = Column(Integer, ForeignKey("channels.id"), primary_key=True)
     user = relationship("User")
     channel = relationship("Channel")
 
@@ -113,12 +116,24 @@ class Database:
             self,
             user_id: User.id,
             channel_id: Channel.id,
-    ):
-        self.session.add(UserToChannel(
-            user_id=user_id,
-            channel_id=channel_id
-        ))
-        self.session.commit()
+    ) -> bool:
+        """
+        Adds line to user_to_channel table
+        :param user_id: Telegram id of User
+        :param channel_id: Telegram id of Channel
+        :return: True if connection already existed, False if new connection
+        """
+        try:
+            self.session.add(UserToChannel(
+                user_id=user_id,
+                channel_id=channel_id
+            ))
+            self.session.commit()
+            return False
+        except IntegrityError:
+            self.session.rollback()
+            # print(f"user_to_channel({user_id}, {channel_id}) already exists")
+            return True
 
     def __check_user(
             self,
@@ -138,7 +153,14 @@ class Database:
         )
         return len(_result.scalars().all()) != 0
 
-    def __get_user(
+    def __check_user_to_channel(
+            self,
+            user_id: User.id,
+            channel_id: Channel.id
+    ):
+        pass
+
+    def get_user(
             self,
             user_id: User.id
     ) -> User:
@@ -164,7 +186,15 @@ class Database:
             user: User = None
     ):
         if user is not None:
-            pass
+            _user_id = user.id
+        else:
+            _user_id = user_id
+        _user: User = self.session.execute(
+            db.select(User).filter_by(id=user_id)
+        ).scalar_one()
+        _user.emotions = emotions
+        _user.themes = themes
+        self.session.commit()
 
     def register_user(
             self,
@@ -186,21 +216,20 @@ class Database:
             user_id: User.id,
             channel_id: Channel.id,
             link: Channel.link
-    ):
+    ) -> bool:
         """
         Adds user_to_channel connection and created new Channel if not existent
         :param user_id: Telegram id of User
         :param channel_id: Telegram id of Channel
         :param link: Telegram link of Channel TODO in what form?
-        :return: True if channel existed, False if created new channel
+        :return: True if connection to channel existed, False if created new one
         """
+        print(user_id, channel_id, link)
         if not self.__check_channel(channel_id):
             _channel = Channel(id=channel_id, link=link)
-            self.__new_channel(_channel)
-            self.__new_user_to_channel(user_id, channel_id)
-            return False
-        self.__new_user_to_channel(user_id, channel_id)
-        return True
+            self.__new_channel(channel=_channel)
+        existed = self.__new_user_to_channel(user_id, channel_id)
+        return existed
 
     def update_user_preferences(
             self,
@@ -214,8 +243,6 @@ class Database:
 
 
 if __name__ == '__main__':
-    # database = Database()
-    # print(database.register_user(123))
-    import json
-    print(json.dumps([Emotion.neutral, Emotion.positive]))
+    database = Database()
+    Base.metadata.create_all(database.engine)
     pass
