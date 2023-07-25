@@ -111,10 +111,21 @@ class Bot:
         # Редактируем сообщение, удаляя кнопку
         await event.edit(buttons=None)
 
+        # Получаем все каналы, связанные с пользователем
+        channels = self.db.get_channels_by_user(sender_id)
+
+        if channels:
+            # Каналы найдены
+            channel_info = "\n".join([f"{i+1}. {channel.link}" for i, channel in enumerate(channels)])
+            message_text = f"Каналы, связанные с пользователем:\n{channel_info}"
+        else:
+            # Каналы не найдены
+            message_text = "У пользователя нет связанных каналов."
+
         self.user_state[sender_id] = UserState.waiting_channel
         await self.bot.send_message(
             sender_id,
-            "Пришли название канала или ссылку на него",
+            message_text,
             parse_mode="HTML",
             buttons=[
                 Button.inline(

@@ -1,4 +1,5 @@
 import sqlite3
+from typing import List
 
 import sqlalchemy as db
 from sqlalchemy.orm import declarative_base, relationship
@@ -248,6 +249,14 @@ class Database:
             self.__new_channel(channel=_channel)
         existed = self.__new_user_to_channel(user_id, channel_id)
         return existed
+
+    def get_channels_by_user(self, user_id: User.id) -> List[Channel]:
+        query = db.select(Channel.id, Channel.link).where(
+            Channel.id.in_(db.select(UserToChannel.channel_id).where(UserToChannel.user_id == user_id))
+        )
+        result = self.session.execute(query).fetchall()
+        channels = [Channel(id=row[0], link=row[1]) for row in result]
+        return channels
 
     def update_user_preferences(
             self,
