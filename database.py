@@ -211,6 +211,24 @@ class Database:
             return False
         return True
 
+    def delete_user_to_channel(
+            self,
+            user_id: User.id,
+            channel_id: Channel.id
+    ) -> bool:
+        try:
+            query = db.delete(UserToChannel).where(
+                db.and_(
+                    UserToChannel.user_id == user_id,
+                    UserToChannel.channel_id == channel_id
+                )
+            )
+            result = self.session.execute(query)
+            self.session.commit()
+            return result.rowcount > 0
+        except:
+            self.session.rollback()
+            return False
     def add_channel_to_user(
             self,
             user_id: User.id,
@@ -240,6 +258,7 @@ class Database:
         str_emotions = json.dumps(emotions)
         str_themes = json.dumps(themes)
         # self.
+
 
 
 if __name__ == '__main__':

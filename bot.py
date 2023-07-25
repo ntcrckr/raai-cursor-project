@@ -153,11 +153,20 @@ class Bot:
         match self.user_state[sender_id]:
             case UserState.waiting_channel:
                 if event.raw_text.find("t.me/") != -1 or event.raw_text[0] == "@":
-                    # TODO
-                    channel = await self.client.get_channel_by_link(event.raw_text)
+                    if (event.raw_text[0] == "@"):
+                        new_raw_text = event.raw_text.replace('@', 't.me/')
+                    else:
+                        new_raw_text = event.raw_text
+                    channel = await self.client.get_channel_by_link(new_raw_text)
                     await self.bot.send_message(
                         sender_id,
-                        str(channel)
+                        f"Это нужный канал?\n@{channel.username}",
+                        buttons=[
+                            [
+                                Button.inline("Да", data=f"channel/yes/{channel.id}/@{channel.username}"),
+                                Button.inline("Нет", data="channel/no"),
+                            ]
+                        ]
                     )
                     self.user_state.pop(sender_id)
                 else:
@@ -191,18 +200,36 @@ class Bot:
             channel_id,
             channel_link
         )
-        self.user_state[sender_id] = UserState.waiting_channel
-        await self.bot.send_message(
-            sender_id,
-            f"Канал {'уже был ' if connection_existed else ''}добавлен!\nПришли название канала, который хочешь добавить, или ссылку на него",
-            parse_mode="HTML",
-            buttons=[
-                Button.inline(
-                    "Перейти дальше",
-                    data="to_emotions"
-                )
-            ]
-        )
+        if connection_existed:
+            connection_existed = self.db.delete_user_to_channel(
+                sender_id,
+                channel_id
+            )
+            self.user_state[sender_id] = UserState.waiting_channel
+            await self.bot.send_message(
+                sender_id,
+                f"Канал уже был добавлен! Следовательно, мы его удалили из твоих подписок\nПришли название канала, который хочешь добавить, или ссылку на него",
+                parse_mode="HTML",
+                buttons=[
+                    Button.inline(
+                        "Перейти дальше",
+                        data="to_emotions"
+                    )
+                ]
+            )
+        else:
+            self.user_state[sender_id] = UserState.waiting_channel
+            await self.bot.send_message(
+                sender_id,
+                f"Канал добавлен!\nПришли название канала, который хочешь добавить, или ссылку на него",
+                parse_mode="HTML",
+                buttons=[
+                    Button.inline(
+                        "Перейти дальше",
+                        data="to_emotions"
+                    )
+                ]
+            )
 
     async def button_channel_no(self, event: events.callbackquery.CallbackQuery.Event):
         sender = await event.get_sender()
