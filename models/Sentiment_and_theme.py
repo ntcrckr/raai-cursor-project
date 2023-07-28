@@ -66,7 +66,7 @@ class BertPredict:
         Очистка текста от лишнего, приведение к нижнему регистру
         """
 
-        if txt is np.NaN or txt == '' or len(txt) == '0' or txt is None:
+        if txt is np.NaN or txt == '' or txt is None or len(txt) == 0:
             return None
         txt = re.sub('[^a-zA-Zа-яА-Я ]', ' ', str(txt).lower())
         txt = re.sub('\s+', ' ', txt)

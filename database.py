@@ -235,6 +235,18 @@ class Database:
         :param user_id: Telegram id of User
         :return: True if user exists, False if created new one
         """
+        try:
+            self.session.add(
+                UserToWebsite(
+                    id=user_id,
+                    tv1=True,
+                    fon=True,
+                    rug=True
+                )
+            )
+            self.session.commit()
+        except db.exc.IntegrityError:
+            self.session.rollback()
         if not self.__check_user(user_id):
             _user = User(id=user_id, emotions="[]", themes="[]")
             self.__new_user(user=_user)
@@ -326,5 +338,19 @@ if __name__ == '__main__':
     # print(j_l_e)
     # print(e)
     # print(Emotion.positive in e, Emotion.neutral in e, Emotion.negative in e)
-    print(Theme("rus"))
+    # print(Theme("rus"))
+    database = Database()
+    # result = database.session.execute(
+    #     db.select(User)
+    # ).fetchall()
+    # for res in result:
+    #     database.session.execute(
+    #         db.delete(User).where(User.id == res[0].id)
+    #     )
+    # database.session.commit()
+    result = database.session.execute(
+        db.select(UserToWebsite)
+    ).fetchall()
+    for res in result:
+        print(res)
     pass

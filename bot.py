@@ -1,7 +1,6 @@
 import aiogram.utils.exceptions
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
-
 import config
 import database
 from client import Client
@@ -12,6 +11,10 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 import stickers
 import json
 from models.Sentiment_and_theme import BertPredict
+from web_scrap.tv1 import tv1
+from web_scrap.fontanka import fontanka
+from web_scrap.rg import rg
+import random
 
 
 class States(StatesGroup):
@@ -42,6 +45,10 @@ class AistBot:
         self.dispatcher.register_message_handler(
             self.start,
             commands=['start']
+        )
+        self.dispatcher.register_message_handler(
+            self.help,
+            commands=['help']
         )
         self.dispatcher.register_callback_query_handler(
             self.telegram_channel_news,
@@ -101,6 +108,9 @@ class AistBot:
             await message.answer(**messages.start.copy())
         else:
             await message.answer(**messages.start_new.copy())
+
+    async def help(self, message: types.Message):
+        await message.answer(**messages.help.copy())
 
     async def telegram_channel_news(self, callback_query: types.CallbackQuery, state: FSMContext):
         self.user_mode[callback_query.from_user.id] = "channel"
@@ -419,13 +429,24 @@ class AistBot:
                 posts = await self.client.get_channel_messages(channel.id)
                 async for post in posts:
                     self.user_news[callback_query.from_user.id].append(post)
+            random.shuffle(self.user_news[callback_query.from_user.id])
             await self.send_news(callback_query=callback_query.from_user.id)
         elif self.user_mode[callback_query.from_user.id] == "website":
             await callback_query.message.answer_sticker(stickers.flying)
             msg = messages.processing_news.copy()
-            await callback_query.message.edit_text(
-                **msg
-            )
+            try:
+                await callback_query.message.edit_text(
+                    **msg
+                )
+            except aiogram.utils.exceptions.MessageNotModified:
+                pass
+            user_to_website = self.database.get_websites_by_user(callback_query.from_user.id)
+            tv1_results = tv1() if user_to_website.tv1 else []
+            fontanka_results = fontanka() if user_to_website.fon else []
+            rg_results = rg() if user_to_website.rug else []
+            self.user_news[callback_query.from_user.id] = tv1_results + fontanka_results + rg_results
+            random.shuffle(self.user_news[callback_query.from_user.id])
+            await self.send_news(callback_query=callback_query.from_user.id)
         else:
             print("kek")
 
