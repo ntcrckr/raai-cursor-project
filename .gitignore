@@ -1,0 +1,7 @@
+config.py
+venv/
+anon.session
+.idea/
+*.session
+*.db
+*.sqlite
